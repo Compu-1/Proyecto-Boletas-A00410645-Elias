@@ -33,5 +33,8 @@ module.exports = {
   // Servidor de desarrollo (npm start)
   devServer: {
     port: 3000,
+    // El overlay solo aparece con errores. La advertencia del código
+    // generado por slice2js (uso dinámico de require) es esperada.
+    client: { overlay: { warnings: false } },
   },
 };
