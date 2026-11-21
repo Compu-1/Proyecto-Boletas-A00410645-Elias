@@ -1,51 +1,82 @@
 import "./styles.css";
-import { state, setState, subscribe } from "./state/store";
+import { state, setState, subscribe, getMySeats } from "./state/store";
 import { Header } from "./components/Header";
 import { SeatMap } from "./components/SeatMap";
 import { CartPanel } from "./components/CartPanel";
 import { CheckoutModal } from "./components/CheckoutModal";
-import { mockEvent, createMockSeats } from "./mock/mockData";
+import * as api from "./services/bookingService";
+
+const REFRESH_MS = 2000; // cada cuánto se consulta el estado de las sillas
+
+// Identificador de sesión del cliente: se conserva si se recarga la página
+function getClientId() {
+  let id = sessionStorage.getItem("clientId");
+  if (!id) {
+    id = "CLI-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+    sessionStorage.setItem("clientId", id);
+  }
+  return id;
+}
 
 // ---------------------------------------------------------------------------
-// Acciones (por ahora simuladas localmente; luego llamarán a ZeroC Ice)
+// Acciones: llaman al servidor y luego refrescan el estado
 // ---------------------------------------------------------------------------
-const LOCK_SECONDS = 90;
 
-function updateSeat(seatId, changes) {
-  return state.seats.map((seat) => (seat.id === seatId ? { ...seat, ...changes } : seat));
+// Trae las sillas del servidor. Los bloqueos propios (con su hora de
+// vencimiento) salen de las mismas sillas, así el temporizador siempre
+// coincide con lo que tiene el servidor.
+async function refresh() {
+  try {
+    const seats = await api.getAllSeats();
+    const locks = {};
+    getMySeats({ seats, clientId: state.clientId }).forEach((seat) => {
+      locks[seat.id] = seat.expiresAt;
+    });
+    setState({ seats, locks, connected: true });
+  } catch (error) {
+    console.error("No se pudo consultar el servidor:", error);
+    setState({ connected: false });
+  }
 }
 
-function lockSeat(seatId) {
-  setState({
-    seats: updateSeat(seatId, { state: "LOCKED", lockedBy: state.clientId }),
-    locks: { ...state.locks, [seatId]: Date.now() + LOCK_SECONDS * 1000 },
-  });
-}
-
-function releaseSeat(seatId) {
-  const locks = { ...state.locks };
-  delete locks[seatId];
-  setState({ seats: updateSeat(seatId, { state: "AVAILABLE", lockedBy: "" }), locks });
-}
-
-function toggleSeat(seatId) {
+async function toggleSeat(seatId) {
   const seat = state.seats.find((s) => s.id === seatId);
-  if (seat.state === "AVAILABLE") lockSeat(seatId);
-  else releaseSeat(seatId);
+  try {
+    if (seat.state === "AVAILABLE") {
+      await api.lockSeat(seatId, state.clientId);
+    } else {
+      await api.releaseSeat(seatId, state.clientId);
+    }
+  } catch (error) {
+    console.error(`Error con la silla ${seatId}:`, error.reason || error);
+  }
+  await refresh();
 }
 
-function confirmBooking(name, email) {
-  const seatIds = Object.keys(state.locks);
-  const totalAmount = state.seats
-    .filter((seat) => seatIds.includes(seat.id))
-    .reduce((sum, seat) => sum + seat.price, 0);
-  const bookingCode = "RES-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+async function releaseSeat(seatId) {
+  try {
+    await api.releaseSeat(seatId, state.clientId);
+  } catch (error) {
+    console.error(`Error liberando ${seatId}:`, error.reason || error);
+  }
+  await refresh();
+}
 
-  let seats = state.seats;
-  seatIds.forEach((id) => {
-    seats = seats.map((seat) => (seat.id === id ? { ...seat, state: "BOOKED" } : seat));
-  });
-  setState({ seats, locks: {}, receipt: { bookingCode, seatIds, totalAmount } });
+async function releaseAll() {
+  for (const seatId of Object.keys(state.locks)) {
+    await releaseSeat(seatId);
+  }
+}
+
+async function confirmBooking(name, email) {
+  try {
+    const seatIds = Object.keys(state.locks);
+    const receipt = await api.confirmBooking(seatIds, state.clientId, name, email);
+    setState({ receipt });
+  } catch (error) {
+    console.error("Error confirmando la compra:", error.reason || error);
+  }
+  await refresh();
 }
 
 // ---------------------------------------------------------------------------
@@ -57,7 +88,7 @@ const components = [
   CartPanel(document.getElementById("cart"), {
     onConfirm: () => setState({ checkoutOpen: true, receipt: null }),
     onReleaseSeat: releaseSeat,
-    onReleaseAll: () => Object.keys(state.locks).forEach(releaseSeat),
+    onReleaseAll: releaseAll,
   }),
   CheckoutModal(document.getElementById("checkout"), {
     onSubmit: confirmBooking,
@@ -67,10 +98,21 @@ const components = [
 
 subscribe((newState) => components.forEach((component) => component.render(newState)));
 
-// Estado inicial
-setState({
-  clientId: "CLI-" + Math.random().toString(36).slice(2, 8).toUpperCase(),
-  connected: false,
-  event: mockEvent,
-  seats: createMockSeats(),
-});
+// ---------------------------------------------------------------------------
+// Inicio
+// ---------------------------------------------------------------------------
+async function start() {
+  setState({ clientId: getClientId() });
+  try {
+    await api.connect();
+    setState({ event: await api.getEventInfo() });
+    await refresh();
+  } catch (error) {
+    console.error("No se pudo conectar con el servidor:", error);
+    setState({ connected: false });
+  }
+  // Consulta periódica para ver los cambios de otros clientes
+  setInterval(refresh, REFRESH_MS);
+}
+
+start();

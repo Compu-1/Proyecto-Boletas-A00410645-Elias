@@ -4,6 +4,7 @@ import { formatMoney, formatTime, ZONE_NAMES } from "../utils/format";
 // Resumen de selección: temporizador, sillas retenidas y total (RF-3, RF-4)
 export function CartPanel(root, { onConfirm, onReleaseSeat, onReleaseAll }) {
   let lastState = null;
+  let lastHtml = "";
 
   root.addEventListener("click", (e) => {
     const removeButton = e.target.closest("button[data-release]");
@@ -42,11 +43,11 @@ export function CartPanel(root, { onConfirm, onReleaseSeat, onReleaseAll }) {
       )
       .join("");
 
-    root.innerHTML = `
+    const html = `
       <h2>Resumen de Selección</h2>
       <div class="timer-box">
         <span>Tiempo de retención:</span>
-        <strong id="timer">${formatTime(secondsLeft(state))}</strong>
+        <strong id="timer"></strong>
       </div>
       <p class="muted">Sillas en retención (${mySeats.length}):</p>
       <ul class="cart-list">${empty ? `<li class="muted">Selecciona sillas en el plano.</li>` : items}</ul>
@@ -54,6 +55,13 @@ export function CartPanel(root, { onConfirm, onReleaseSeat, onReleaseAll }) {
       <button id="btn-confirm" class="btn primary" ${empty ? "disabled" : ""}>Confirmar Reserva</button>
       <button id="btn-release-all" class="btn" ${empty ? "disabled" : ""}>Liberar Sillas</button>
     `;
+
+    // Solo se repinta si cambió el carrito (igual que en SeatMap)
+    if (html !== lastHtml) {
+      root.innerHTML = html;
+      lastHtml = html;
+    }
+    root.querySelector("#timer").textContent = formatTime(secondsLeft(state));
   }
 
   return { render };

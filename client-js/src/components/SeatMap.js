@@ -3,6 +3,8 @@ import { ZONE_NAMES } from "../utils/format";
 // Plano interactivo de sillas agrupado por zona y fila.
 // onSeatClick(seatId) se llama al hacer clic en una silla que se puede tocar.
 export function SeatMap(root, { onSeatClick }) {
+  let lastHtml = "";
+
   // Un solo listener para todo el plano (delegación de eventos)
   root.addEventListener("click", (e) => {
     const button = e.target.closest("button[data-seat]");
@@ -52,7 +54,12 @@ export function SeatMap(root, { onSeatClick }) {
         <span><i class="seat booked"></i> Vendida</span>
       </div>
     `;
-    root.innerHTML = html;
+    // Solo se repinta si algo cambió: así un clic no se pierde porque
+    // el botón fue reemplazado justo por la consulta periódica.
+    if (html !== lastHtml) {
+      root.innerHTML = html;
+      lastHtml = html;
+    }
   }
 
   return { render };
