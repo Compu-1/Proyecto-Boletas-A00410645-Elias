@@ -202,3 +202,37 @@ p { margin: 4px 0; }
 
 .receipt { border: 2px dashed #9ca3af; padding: 16px; text-align: center; }
 .receipt .code { background: #e5e7eb; border: 1px solid #9ca3af; padding: 8px; font-weight: bold; margin: 8px 0; }
+
+/* ---------- Barra lateral ---------- */
+.sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+/* ---------- Mis reservas ---------- */
+.bookings-list { list-style: none; padding: 0; margin: 8px 0 0; }
+
+.bookings-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid #d1d5db;
+  padding: 8px;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
+/* ---------- Notificaciones ---------- */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 12px 20px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  z-index: 10; /* por encima del modal */
+}
+
+.toast[hidden] { display: none; }
+.toast.error { background: #dc2626; }
+.toast.info { background: #16a34a; }
