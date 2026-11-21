@@ -60,9 +60,19 @@ En una segunda terminal:
 ```
 *Permite consultar el aforo, ver el mapa de sillas en consola, bloquear sillas, confirmar compras y reiniciar el inventario.*
 
-### Paso 3: Demostrar la Vulnerabilidad de Concurrencia
-Puedes ejecutar la prueba de estrés automatizada directamente desde el cliente:
+### Paso 3: Prueba de Estrés de Concurrencia
+Puedes ejecutar la prueba de estrés automatizada directamente desde el cliente
+(se usa la tarea del subproyecto `:client`, que es la que acepta `--args`):
 ```bash
-./gradlew runClient --args="--test-concurrency"
+./gradlew :client:runClient --args="--test-concurrency"
 ```
-*Esta prueba dispara 10 hilos concurrentes intentando bloquear al unísono la silla `A-1`. Podrás observar cómo múltiples hilos logran bloquear la misma silla debido a la ausencia de sincronización en `BookingServiceImpl.java`.*
+*Esta prueba dispara 10 hilos concurrentes intentando bloquear al unísono la silla `A-1`.*
+
+**Vulnerabilidad corregida:** en el código original los 10 hilos lograban bloquear la misma silla.
+Los métodos remotos de `BookingServiceImpl.java` ahora son `synchronized`, por lo que el resultado es:
+
+```text
+Peticiones que creyeron ganar el bloqueo : 1
+Peticiones correctamente rechazadas     : 9
+ [SIN CONDICIÓN DE CARRERA]: Solo 1 hilo obtuvo el bloqueo. Servidor seguro.
+```
