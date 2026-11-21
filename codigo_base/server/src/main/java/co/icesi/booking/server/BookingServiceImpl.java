@@ -94,6 +94,20 @@ public class BookingServiceImpl implements BookingService {
         return elapsedSeconds > seat.lockDurationSeconds;
     }
 
+    // Libera en el servidor las sillas cuyo bloqueo de 90 s ya venció,
+    // para que las consultas devuelvan el estado real (RF-3).
+    // Siempre se llama desde métodos synchronized.
+    private void releaseExpiredLocks() {
+        for (Seat s : seatsMap.values()) {
+            if (isLockExpired(s)) {
+                System.out.printf("[LOCK-EXPIRED] El bloqueo de la silla %s expiró. Liberando.%n", s.id);
+                s.state = SeatState.AVAILABLE;
+                s.lockedByClientId = "";
+                s.lockTimestamp = 0L;
+            }
+        }
+    }
+
     private void updateEventCounters() {
         int avail = 0;
         int locked = 0;
@@ -115,12 +129,14 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public synchronized EventInfo getEventInfo(Current current) {
+        releaseExpiredLocks();
         updateEventCounters();
         return eventInfo;
     }
 
     @Override
     public synchronized Seat[] getAllSeats(Current current) {
+        releaseExpiredLocks();
         List<Seat> list = new ArrayList<>(seatsMap.values());
         list.sort(Comparator.comparing((Seat s) -> s.row).thenComparingInt(s -> s.number));
         return list.toArray(new Seat[0]);
@@ -128,6 +144,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public synchronized Seat[] getSeatsByZone(SeatZone zone, Current current) {
+        releaseExpiredLocks();
         List<Seat> list = new ArrayList<>();
         for (Seat s : seatsMap.values()) {
             if (s.zone == zone) {
@@ -140,6 +157,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public synchronized Seat getSeat(String seatId, Current current) throws SeatNotFoundException {
+        releaseExpiredLocks();
         Seat seat = seatsMap.get(seatId);
         if (seat == null) {
             throw new SeatNotFoundException("Silla no encontrada en inventario: " + seatId);
