@@ -10,6 +10,8 @@ export const state = {
   locks: {},          // { seatId: expiresAt (ms) } de las sillas que bloqueé
   checkoutOpen: false,
   receipt: null,      // { bookingCode, seatIds, totalAmount }
+  bookings: [],       // compras confirmadas de este cliente
+  notice: null,       // { text, type: "error" | "info" } mensaje en pantalla
 };
 
 const listeners = [];
