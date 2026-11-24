@@ -162,7 +162,14 @@ Para ejecutar la prueba de estrés contra la VM desde otra máquina:
 
 ## Video demostrativo
 
-El guion del video (máximo 6 minutos) está en [docs/guion-video.md](docs/guion-video.md).
+El video de la demostración (5:27) está en el repositorio:
+[video sustentacion/video_elias.mp4](<video sustentacion/video_elias.mp4>).
+
+Muestra la ejecución del servidor Java y la prueba de estrés corregida, la ejecución del
+frontend con `npm start` y el flujo completo: bloqueo de sillas, temporizador, compra con
+código de reserva, expiración y reconexión del servidor.
+
+El guion que se siguió está en [docs/guion-video.md](docs/guion-video.md).
 
 ---
 
